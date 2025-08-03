@@ -176,3 +176,41 @@ engine.delete_song_from_playlist(0)
 print("\nLooking up song S001 (should be gone)...")
 found_song = engine.lookup_song("S001")
 print(f"Found: {found_song}")
+
+# In main.py
+print("\n--- Testing Sorting ---")
+
+# Create an unsorted playlist
+sort_engine = PlayWiseEngine()
+sort_engine.add_song_to_playlist(Song(song_id="S003", title="Hotel California", artist="Eagles", duration=390))
+sort_engine.add_song_to_playlist(Song(song_id="S001", title="Bohemian Rhapsody", artist="Queen", duration=355))
+sort_engine.add_song_to_playlist(Song(song_id="S002", title="Stairway to Heaven", artist="Led Zeppelin", duration=482))
+
+print("Original playlist:")
+sort_engine.playlist.display()
+
+# Sort by title (alphabetical)
+print("\nSorting by title...")
+sort_engine.playlist.sort_playlist(by_key='title')
+sort_engine.playlist.display()
+
+# Sort by duration (longest first)
+print("\nSorting by duration (descending)...")
+sort_engine.playlist.sort_playlist(by_key='duration', reverse=True)
+sort_engine.playlist.display()
+
+# In main.py
+import json
+
+print("\n--- Testing System Snapshot ---")
+
+# Let's use the 'sort_engine' which already has songs and ratings
+# Let's add some playback history to it
+for song in sort_engine.playlist.head, sort_engine.playlist.head.next:
+    sort_engine.play_song(song.song)
+
+# Generate and print the snapshot
+final_snapshot = sort_engine.export_snapshot()
+
+# Use json.dumps for pretty printing the dictionary
+print(json.dumps(final_snapshot, default=lambda o: o.__dict__, indent=4))

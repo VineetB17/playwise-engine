@@ -183,11 +183,71 @@ class Playlist:
             current_node = current_node.next
             song_number += 1
 
+    # These methods go inside the Playlist class
+    def sort_playlist(self, by_key='title', reverse=False):
+        """
+        Sorts the playlist using Merge Sort based on a given key.
+        Time Complexity: O(n log n)
+        Space Complexity: O(n)
+        """
+        if self.count < 2:
+            return # No need to sort
+
+        # 1. Extract songs to a Python list
+        songs_list = []
+        current_node = self.head
+        while current_node:
+            songs_list.append(current_node.song)
+            current_node = current_node.next
+
+        # 2. Sort the list using our Merge Sort implementation
+        sorted_songs = self._merge_sort(songs_list, by_key, reverse)
+
+        # 3. Clear and rebuild the linked list
+        self.head = None
+        self.tail = None
+        self.count = 0
+        for song in sorted_songs:
+            self.add_song(song) # Re-use the add_song method
+        
+        print(f"Playlist sorted by {by_key} ({'desc' if reverse else 'asc'}).")
+
+    def _merge_sort(self, songs, key, reverse):
+        """Private recursive Merge Sort algorithm."""
+        if len(songs) <= 1:
+            return songs
+
+        # Divide the list into two halves
+        mid = len(songs) // 2
+        left_half = self._merge_sort(songs[:mid], key, reverse)
+        right_half = self._merge_sort(songs[mid:], key, reverse)
+
+        # Combine (merge) the sorted halves
+        sorted_list = []
+        i = j = 0
+        while i < len(left_half) and j < len(right_half):
+            # Use getattr to dynamically access the sort key (e.g., song.title)
+            left_val = getattr(left_half[i], key)
+            right_val = getattr(right_half[j], key)
+            
+            # Check for ascending or descending order
+            if (not reverse and left_val < right_val) or \
+               (reverse and left_val > right_val):
+                sorted_list.append(left_half[i])
+                i += 1
+            else:
+                sorted_list.append(right_half[j])
+                j += 1
+
+        sorted_list.extend(left_half[i:])
+        sorted_list.extend(right_half[j:])
+        return sorted_list
+
 # In engine.py, after the Playlist class
 
 class PlayWiseEngine:
     """The main engine to manage all components of the music player."""
-    
+
     def __init__(self):
         self.playlist = Playlist()
         self.playback_history = []
@@ -220,7 +280,9 @@ class PlayWiseEngine:
 
     # NEW METHOD
     def lookup_song(self, song_id):
-        """Instant O(1) lookup for a song by its ID."""
+        """Instant O(1) lookup for a song by its ID.
+        Time Complexity: O(1)
+        Space Complexity: O(1)"""
         return self.song_lookup_table.get(song_id, "Song not found.")
 
     def rate_song(self, song, rating):
@@ -255,6 +317,30 @@ class PlayWiseEngine:
         """Deletes a song with a given rating from the BST."""
         self.rating_tree.delete_song(song_id, rating)
 
+    # This method goes inside the PlayWiseEngine class
+    def export_snapshot(self):
+        """
+        Gathers live stats from all components and returns them in a dictionary.
+        """
+        # 1. Top 5 longest songs
+        all_songs = list(self.song_lookup_table.values())
+        # Use a lambda function for a quick, one-off sort by duration
+        longest_songs = sorted(all_songs, key=lambda song: song.duration, reverse=True)[:5]
+
+        # 2. Most recently played songs
+        # Reverse the list to show most recent first
+        recent_plays = self.playback_history[::-1]
+
+        # 3. Song count by rating
+        rating_counts = self.rating_tree.get_rating_counts()
+
+        snapshot = {
+            "top_5_longest_songs": longest_songs,
+            "most_recently_played": recent_plays,
+            "song_count_by_rating": rating_counts
+        }
+        return snapshot
+
 class BSTNode:
     """A node in the Binary Search Tree for song ratings."""
     def __init__(self, key):
@@ -269,7 +355,9 @@ class RatingBST:
         self.root = None
 
     def insert_song(self, song, rating):
-        """Public method to insert a song into the BST."""
+        """Public method to insert a song into the BST.
+        Time Complexity: O(log n)
+        Space Complexity: O(log n)"""
         # This is a wrapper for the recursive insert function.
         self.root = self._insert(self.root, rating, song)
 
@@ -294,7 +382,9 @@ class RatingBST:
     
     # This method goes inside the RatingBST class
     def search_by_rating(self, rating):
-        """Public method to search for songs with a specific rating."""
+        """Public method to search for songs with a specific rating.
+        Time Complexity: O(log n)
+        Space Complexity: O(log n)"""
         node = self._search(self.root, rating)
         if node:
             return node.songs
@@ -318,7 +408,9 @@ class RatingBST:
         
     # To Delete a song inside a particular rating bin 
     def delete_song(self, song_id, rating):
-        """Finds the correct rating node and removes a specific song from its list."""
+        """Finds the correct rating node and removes a specific song from its list.
+        Time Complexity: O(log n)
+        Space Complexity: O(1)"""
         # Step 1: Find the node with the given rating.
         node = self._search(self.root, rating)
 
@@ -352,3 +444,17 @@ class RatingBST:
             self._in_order_traversal(current_node.left)
             print(f"Rating {current_node.key} Stars: {current_node.songs}")
             self._in_order_traversal(current_node.right)
+
+    # This method goes inside the RatingBST class
+    def get_rating_counts(self):
+        """Returns a dictionary of rating counts."""
+        counts = {}
+        self._collect_counts(self.root, counts)
+        return counts
+
+    def _collect_counts(self, current_node, counts):
+        """Private recursive helper to collect song counts."""
+        if current_node is not None:
+            self._collect_counts(current_node.left, counts)
+            counts[current_node.key] = len(current_node.songs)
+            self._collect_counts(current_node.right, counts)
