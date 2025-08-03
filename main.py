@@ -71,3 +71,108 @@ move_playlist.reverse_playlist()
 
 print("\nPlaylist after reverse:")
 move_playlist.display()
+
+# In main.py
+from engine import Song, PlayWiseEngine
+
+# --- Setup ---
+engine = PlayWiseEngine()
+
+songA = Song(song_id="S001", title="Song A", artist="Art", duration=100)
+songB = Song(song_id="S002", title="Song B", artist="Art", duration=100)
+songC = Song(song_id="S003", title="Song C", artist="Art", duration=100)
+songD = Song(song_id="S004", title="Song D", artist="Art", duration=100)
+
+engine.playlist.add_song(songA)
+engine.playlist.add_song(songB)
+engine.playlist.add_song(songC)
+engine.playlist.add_song(songD)
+
+print("--- Testing Playback History ---")
+print("Initial Playlist:")
+engine.playlist.display()
+
+# --- Simulate Playing Songs ---
+print("\nPlaying two songs...")
+engine.play_song(songA)
+engine.play_song(songB)
+
+print("\nPlayback History (top of stack is last):", engine.playback_history)
+
+# --- Undo the Last Played Song ---
+print("\nUndoing the last play...")
+engine.undo_last_play()
+
+print("\nNew Playback History:", engine.playback_history)
+print("Playlist after undo:")
+engine.playlist.display()
+
+
+# In main.py
+print("\n--- Testing Rating Tree ---")
+# Rate the songs we created earlier
+engine.rate_song(songC, 5) # 5 stars
+engine.rate_song(songA, 4) # 4 stars
+engine.rate_song(songB, 5) # Another 5-star song
+engine.rate_song(songD, 2) # 2 stars
+
+# Display the contents of the tree
+engine.rating_tree.display()
+
+# In main.py
+print("\n--- Testing Rating Search ---")
+
+# Search for a rating that exists
+print("Searching for 5-star songs...")
+five_star_songs = engine.rating_tree.search_by_rating(5)
+print(f"Found: {five_star_songs}")
+
+# Search for a rating that does not exist
+print("\nSearching for 3-star songs...")
+three_star_songs = engine.rating_tree.search_by_rating(3)
+print(f"Found: {three_star_songs}")
+
+# In main.py
+print("\n--- Testing Rating Deletion ---")
+
+print("Tree before deletion:")
+engine.rating_tree.display()
+
+# Delete songB (ID S002), which has a 5-star rating
+print("\nDeleting Song B (ID: S002, Rating: 5)...")
+engine.delete_rated_song("S002", 5)
+
+print("\nTree after deletion:")
+engine.rating_tree.display()
+
+
+#TESTING THE NEW HASH MAP Constant lookup alongwith the insert and delete operations for Synchronization between 2 Different Data Structures , A HashMap and A Doubly Linked List
+# In main.py, you can create a new test section
+from engine import Song, PlayWiseEngine
+
+# --- Setup ---
+engine = PlayWiseEngine()
+
+songA = Song(song_id="S001", title="Bohemian Rhapsody", artist="Queen", duration=355)
+songB = Song(song_id="S002", title="Stairway to Heaven", artist="Led Zeppelin", duration=482)
+
+# Use the new synchronized method to add songs
+engine.add_song_to_playlist(songA)
+engine.add_song_to_playlist(songB)
+
+print("\n--- Testing Instant Lookup ---")
+print("Playlist contents:")
+engine.playlist.display()
+
+print("\nLooking up song S002...")
+found_song = engine.lookup_song("S002")
+print(f"Found: {found_song}")
+print(f"Its duration is: {found_song.duration}s")
+
+
+print("\nDeleting song at index 0...")
+engine.delete_song_from_playlist(0)
+
+print("\nLooking up song S001 (should be gone)...")
+found_song = engine.lookup_song("S001")
+print(f"Found: {found_song}")

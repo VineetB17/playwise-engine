@@ -167,7 +167,7 @@ class Playlist:
         self.head = self.tail
         self.tail = temp
         print("Playlist has been reversed.")
-        
+ 
 
     def display(self):
         """Prints the songs in the playlist from head to tail."""
@@ -182,3 +182,173 @@ class Playlist:
             print(f"{song_number}. {song.title} by {song.artist} ({song.duration}s)")
             current_node = current_node.next
             song_number += 1
+
+# In engine.py, after the Playlist class
+
+class PlayWiseEngine:
+    """The main engine to manage all components of the music player."""
+    
+    def __init__(self):
+        self.playlist = Playlist()
+        self.playback_history = []
+        self.rating_tree = RatingBST()
+        self.song_lookup_table = {}  # <-- ADD THIS: Our HashMap
+
+    # NEW METHOD
+    def add_song_to_playlist(self, song):
+        """Adds a song to the playlist and the lookup table."""
+        self.playlist.add_song(song)
+        self.song_lookup_table[song.song_id] = song
+        print(f"Added '{song.title}' to playlist and lookup table.")
+
+    # NEW METHOD
+    def delete_song_from_playlist(self, index):
+        """Deletes a song from the playlist and the lookup table."""
+        # We need to get the song object before deleting it from the playlist
+        node_to_delete = self.playlist.head
+        if node_to_delete is None: return
+
+        for _ in range(index):
+            if node_to_delete.next:
+                node_to_delete = node_to_delete.next
+        
+        song_to_delete = node_to_delete.song
+        
+        # Now, delete from both places
+        del self.song_lookup_table[song_to_delete.song_id]
+        self.playlist.delete_song(index) # This will print its own message
+
+    # NEW METHOD
+    def lookup_song(self, song_id):
+        """Instant O(1) lookup for a song by its ID."""
+        return self.song_lookup_table.get(song_id, "Song not found.")
+
+    def rate_song(self, song, rating):
+        """Adds a song with a given rating to the BST."""
+        print(f"Rating '{song.title}' as {rating} stars.")
+        self.rating_tree.insert_song(song, rating)
+    
+    
+
+    def play_song(self, song):
+        """Simulates playing a song and adds it to the history stack."""
+        print(f"Playing: {song.title}")
+        self.playback_history.append(song) # 'append' is our stack 'push'
+
+    def undo_last_play(self):
+        """
+        Takes the last played song from the history stack and adds it
+        back to the playlist.
+        Time Complexity: O(1)
+        Space Complexity: O(1)
+        """
+        if not self.playback_history:
+            print("No songs in playback history to undo.")
+            return
+
+        last_song = self.playback_history.pop() # 'pop' removes the last item
+        self.playlist.add_song(last_song)
+        print(f"Undone: '{last_song.title}' has been re-added to the playlist.")
+
+    # Caling the delete song function from the BSTNode class    
+    def delete_rated_song(self, song_id, rating):
+        """Deletes a song with a given rating from the BST."""
+        self.rating_tree.delete_song(song_id, rating)
+
+class BSTNode:
+    """A node in the Binary Search Tree for song ratings."""
+    def __init__(self, key):
+        self.key = key          # The rating (e.g., 1, 2, 3, 4, 5)
+        self.songs = []         # A list of songs with this rating
+        self.left = None        # Pointer to the left child node (lower ratings)
+        self.right = None       # Pointer to the right child node (higher ratings)
+
+class RatingBST:
+    """Manages the BST of song ratings."""
+    def __init__(self):
+        self.root = None
+
+    def insert_song(self, song, rating):
+        """Public method to insert a song into the BST."""
+        # This is a wrapper for the recursive insert function.
+        self.root = self._insert(self.root, rating, song)
+
+    def _insert(self, current_node, key, song):
+        """Private recursive method to find the correct spot and insert."""
+        # Base Case: If we've found an empty spot, create a new node.
+        if current_node is None:
+            new_node = BSTNode(key)
+            new_node.songs.append(song)
+            return new_node
+
+        # Recursive Step:
+        if key < current_node.key:
+            current_node.left = self._insert(current_node.left, key, song)
+        elif key > current_node.key:
+            current_node.right = self._insert(current_node.right, key, song)
+        else:
+            # If key already exists, just add the song to the list.
+            current_node.songs.append(song)
+        
+        return current_node
+    
+    # This method goes inside the RatingBST class
+    def search_by_rating(self, rating):
+        """Public method to search for songs with a specific rating."""
+        node = self._search(self.root, rating)
+        if node:
+            return node.songs
+        return [] # Return an empty list if the rating is not found
+
+    def _search(self, current_node, key):
+        """Private recursive method to find the node with the matching key."""
+        # Base Case 1: The rating does not exist in the tree.
+        if current_node is None:
+            return None
+        
+        # Base Case 2: We found the node with the matching rating.
+        if current_node.key == key:
+            return current_node
+        
+        # Recursive Step: Decide whether to go left or right.
+        if key < current_node.key:
+            return self._search(current_node.left, key)
+        else: # key > current_node.key
+            return self._search(current_node.right, key)
+        
+    # To Delete a song inside a particular rating bin 
+    def delete_song(self, song_id, rating):
+        """Finds the correct rating node and removes a specific song from its list."""
+        # Step 1: Find the node with the given rating.
+        node = self._search(self.root, rating)
+
+        if node:
+            # Step 2: Find the song with the matching ID in the node's list.
+            song_to_delete = None
+            for song in node.songs:
+                if song.song_id == song_id:
+                    song_to_delete = song
+                    break
+            
+            # Step 3: Remove the song if it was found.
+            if song_to_delete:
+                node.songs.remove(song_to_delete)
+                print(f"Deleted '{song_to_delete.title}' from rating {rating}.")
+                # Optional: If the list becomes empty, you could decide to delete the tree node,
+                # but for this project, leaving the empty node is fine.
+            else:
+                print(f"Error: Song ID {song_id} not found with rating {rating}.")
+        else:
+            print(f"Error: Rating {rating} not found in the tree.")
+
+    def display(self):
+        """A wrapper for the recursive in-order traversal print."""
+        print("--- Song Ratings (In-Order) ---")
+        self._in_order_traversal(self.root)
+
+    def _in_order_traversal(self, current_node):
+        """Prints the tree's contents by visiting left, root, then right."""
+        if current_node is not None:
+            self._in_order_traversal(current_node.left)
+            print(f"Rating {current_node.key} Stars: {current_node.songs}")
+            self._in_order_traversal(current_node.right)
