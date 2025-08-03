@@ -1,10 +1,12 @@
 
 class Song:
-    def __init__(self, song_id, title, artist, duration):
+    # In the Song class's __init__ method...
+    def __init__(self, song_id, title, artist, duration, volume=80): # Added volume for the specialized use case
         self.song_id = song_id
         self.title = title
         self.artist = artist
-        self.duration = duration # in seconds
+        self.duration = duration
+        self.volume = volume # Added volume with a default value
 
     def __repr__(self):
         # A handy representation for printing
@@ -242,41 +244,79 @@ class Playlist:
         sorted_list.extend(left_half[i:])
         sorted_list.extend(right_half[j:])
         return sorted_list
+    
+    # This method goes inside the Playlist class
+    #Specialized Use Case 
+    def normalize_volume(self):
+        """Calculates and sets a consistent volume for all songs in the playlist."""
+        if self.count < 2:
+            print("Playlist has too few songs to normalize.")
+            return
 
-# In engine.py, after the Playlist class
+        # Step 1: Calculate the average volume
+        total_volume = 0
+        current_node = self.head
+        while current_node:
+            total_volume += current_node.song.volume
+            current_node = current_node.next
+        
+        average_volume = total_volume / self.count
+
+        # Step 2: Adjust each song's volume to the average
+        current_node = self.head
+        while current_node:
+            current_node.song.volume = average_volume
+            current_node = current_node.next
+        
+        print(f"All songs in the playlist have been normalized to volume: {average_volume:.2f}")
 
 class PlayWiseEngine:
     """The main engine to manage all components of the music player."""
 
+    # In the PlayWiseEngine class
     def __init__(self):
-        self.playlist = Playlist()
+        self.playlists = {}  # A dictionary to hold multiple playlists
+        self.active_playlist_id = None
         self.playback_history = []
         self.rating_tree = RatingBST()
-        self.song_lookup_table = {}  # <-- ADD THIS: Our HashMap
+        self.song_lookup_table = {}
+        self.pause_stack = [] # Stack to hold paused playlist states
 
     # NEW METHOD
-    def add_song_to_playlist(self, song):
-        """Adds a song to the playlist and the lookup table."""
-        self.playlist.add_song(song)
-        self.song_lookup_table[song.song_id] = song
-        print(f"Added '{song.title}' to playlist and lookup table.")
+    def add_song_to_playlist(self, playlist_id, song):
+        """Adds a song to the specified playlist and the lookup table."""
+        if playlist_id in self.playlists:
+            # 1. Add to the correct playlist
+            self.playlists[playlist_id].add_song(song)
+            # 2. Add to the lookup table for sync
+            self.song_lookup_table[song.song_id] = song
+            print(f"Added '{song.title}' to playlist '{playlist_id}'.")
+        else:
+            print(f"Error: Playlist '{playlist_id}' not found.")
 
     # NEW METHOD
-    def delete_song_from_playlist(self, index):
-        """Deletes a song from the playlist and the lookup table."""
-        # We need to get the song object before deleting it from the playlist
-        node_to_delete = self.playlist.head
-        if node_to_delete is None: return
-
-        for _ in range(index):
-            if node_to_delete.next:
+    def delete_song_from_playlist(self, playlist_id, index):
+        """Deletes a song from the specified playlist and the lookup table."""
+        if playlist_id in self.playlists:
+            playlist = self.playlists[playlist_id]
+            if not (0 <= index < playlist.count):
+                print(f"Error: Index {index} out of bounds for playlist '{playlist_id}'.")
+                return
+                
+            # Get the song object before deleting it from the playlist
+            node_to_delete = playlist.head
+            for _ in range(index):
                 node_to_delete = node_to_delete.next
-        
-        song_to_delete = node_to_delete.song
-        
-        # Now, delete from both places
-        del self.song_lookup_table[song_to_delete.song_id]
-        self.playlist.delete_song(index) # This will print its own message
+            
+            song_to_delete = node_to_delete.song
+            
+            # Now, delete from both places
+            if song_to_delete.song_id in self.song_lookup_table:
+                del self.song_lookup_table[song_to_delete.song_id]
+            
+            playlist.delete_song(index) # This will print its own message
+        else:
+            print(f"Error: Playlist '{playlist_id}' not found.")
 
     # NEW METHOD
     def lookup_song(self, song_id):
@@ -297,10 +337,13 @@ class PlayWiseEngine:
         print(f"Playing: {song.title}")
         self.playback_history.append(song) # 'append' is our stack 'push'
 
+    # In your PlayWiseEngine class in engine.py
+
+    # REPLACE THE OLD METHOD WITH THIS
     def undo_last_play(self):
         """
         Takes the last played song from the history stack and adds it
-        back to the playlist.
+        back to the currently active playlist.
         Time Complexity: O(1)
         Space Complexity: O(1)
         """
@@ -308,9 +351,15 @@ class PlayWiseEngine:
             print("No songs in playback history to undo.")
             return
 
-        last_song = self.playback_history.pop() # 'pop' removes the last item
-        self.playlist.add_song(last_song)
-        print(f"Undone: '{last_song.title}' has been re-added to the playlist.")
+        last_song = self.playback_history.pop()
+
+        # Get the currently active playlist and add the song to it
+        if self.active_playlist_id and self.active_playlist_id in self.playlists:
+            active_playlist = self.playlists[self.active_playlist_id]
+            active_playlist.add_song(last_song)
+            print(f"Undone: '{last_song.title}' has been re-added to playlist '{self.active_playlist_id}'.")
+        else:
+            print(f"Error: No active playlist to add the song to.")
 
     # Caling the delete song function from the BSTNode class    
     def delete_rated_song(self, song_id, rating):
@@ -340,6 +389,37 @@ class PlayWiseEngine:
             "song_count_by_rating": rating_counts
         }
         return snapshot
+    
+    # These methods go inside the PlayWiseEngine class
+    def create_playlist(self, playlist_id):
+        """Creates a new, empty playlist."""
+        if playlist_id not in self.playlists:
+            self.playlists[playlist_id] = Playlist()
+            print(f"Playlist '{playlist_id}' created.")
+        if self.active_playlist_id is None:
+            self.active_playlist_id = playlist_id
+
+    def switch_playlist(self, new_playlist_id, current_song_index=0):
+        """Switches the active playlist, pausing the current one."""
+        if self.active_playlist_id and self.active_playlist_id != new_playlist_id:
+            # Save the state of the current playlist before switching
+            paused_state = (self.active_playlist_id, current_song_index)
+            self.pause_stack.append(paused_state)
+            print(f"Pausing playlist '{self.active_playlist_id}' at song index {current_song_index}.")
+        
+        self.active_playlist_id = new_playlist_id
+        print(f"Switched to active playlist: '{self.active_playlist_id}'.")
+
+    def resume_last_playlist(self):
+        """Resumes the most recently paused playlist."""
+        if not self.pause_stack:
+            print("No paused playlists to resume.")
+            return
+        
+        playlist_id, song_index = self.pause_stack.pop()
+        self.active_playlist_id = playlist_id
+        print(f"Resuming playlist '{playlist_id}' from song index {song_index}.")
+        # In a real app, you would now start playing from this index.
 
 class BSTNode:
     """A node in the Binary Search Tree for song ratings."""
@@ -348,6 +428,8 @@ class BSTNode:
         self.songs = []         # A list of songs with this rating
         self.left = None        # Pointer to the left child node (lower ratings)
         self.right = None       # Pointer to the right child node (higher ratings)
+
+    
 
 class RatingBST:
     """Manages the BST of song ratings."""
