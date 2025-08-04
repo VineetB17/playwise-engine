@@ -42,27 +42,105 @@ The system is designed around a central `PlayWiseEngine` class that acts as a ma
 
 ## 3. Pseudocode for Major Algorithms
 
-Here is pseudocode for the recursive insertion logic of the Binary Search Tree.
 
-**Algorithm:** `_insert(current_node, key, song)`
+1. Doubly Linked List - Move Song
+This algorithm shows the pointer manipulation required to move a node from one position to another.
+
+FUNCTION move_song(from_index, to_index):
+  // Find the node to move
+  node_to_move = GET_NODE_AT(from_index)
+
+  // Unlink the node from its current position
+  IF node_to_move.prev is not NULL:
+    node_to_move.prev.next = node_to_move.next
+  ELSE:
+    // It was the head
+    playlist.head = node_to_move.next
+  ENDIF
+
+  IF node_to_move.next is not NULL:
+    node_to_move.next.prev = node_to_move.prev
+  ELSE:
+    // It was the tail
+    playlist.tail = node_to_move.prev
+  ENDIF
+
+  // Find the target node to insert before
+  target_node = GET_NODE_AT(to_index)
+
+  // Re-insert the node at the new position
+  IF target_node is NULL:
+    // Move to the end
+    playlist.tail.next = node_to_move
+    node_to_move.prev = playlist.tail
+    playlist.tail = node_to_move
+  ELSE:
+    // Insert before target node
+    node_to_move.prev = target_node.prev
+    node_to_move.next = target_node
+    IF target_node.prev is not NULL:
+      target_node.prev.next = node_to_move
+    ELSE:
+      playlist.head = node_to_move
+    ENDIF
+    target_node.prev = node_to_move
+  ENDIF
+ENDFUNCTION
+
+2. Binary Search Tree - Recursive Insert
+This algorithm shows how a song is recursively placed into the correct rating bucket in the BST.
 
 FUNCTION _insert(current_node, key, song):
-IF current_node is NULL:
-new_node = CREATE_NODE(key)
-ADD song to new_node.songs
-RETURN new_node
-ENDIF
+  IF current_node is NULL:
+    new_node = CREATE_NODE(key)
+    ADD song to new_node.songs
+    RETURN new_node
+  ENDIF
 
-IF key < current_node.key:
-current_node.left = _insert(current_node.left, key, song)
-ELSE IF key > current_node.key:
-current_node.right = _insert(current_node.right, key, song)
-ELSE:
-ADD song to current_node.songs
-ENDIF
+  IF key < current_node.key:
+    current_node.left = _insert(current_node.left, key, song)
+  ELSE IF key > current_node.key:
+    current_node.right = _insert(current_node.right, key, song)
+  ELSE:
+    // Key already exists, just add the song
+    ADD song to current_node.songs
+  ENDIF
 
-RETURN current_node
+  RETURN current_node
 ENDFUNCTION
+3. Merge Sort Algorithm
+This algorithm shows the recursive "divide and conquer" logic for sorting.
+
+FUNCTION _merge_sort(list_of_songs):
+  IF length of list_of_songs <= 1:
+    RETURN list_of_songs
+  ENDIF
+
+  // Divide
+  mid = length of list_of_songs / 2
+  left_half = _merge_sort(first half of list_of_songs)
+  right_half = _merge_sort(second half of list_of_songs)
+
+  // Combine
+  RETURN merge(left_half, right_half)
+ENDFUNCTION
+
+FUNCTION merge(left_list, right_list):
+  sorted_list = CREATE_EMPTY_LIST()
+  WHILE left_list and right_list are not empty:
+    IF first element of left_list < first element of right_list:
+      MOVE first element of left_list to sorted_list
+    ELSE:
+      MOVE first element of right_list to sorted_list
+    ENDIF
+  ENDWHILE
+
+  ADD any remaining elements from left_list to sorted_list
+  ADD any remaining elements from right_list to sorted_list
+
+  RETURN sorted_list
+ENDFUNCTION
+
 
 ---
 
