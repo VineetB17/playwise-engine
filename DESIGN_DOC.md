@@ -108,6 +108,7 @@ FUNCTION _insert(current_node, key, song):
 
   RETURN current_node
 ENDFUNCTION
+
 3. Merge Sort Algorithm
 This algorithm shows the recursive "divide and conquer" logic for sorting.
 
